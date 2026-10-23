@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#111111">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>LIVE CODE EDITOR - Auto Save on Timer</title>
+
+  <!-- Font Awesome -->
+  <script src="https://kit.fontawesome.com/ec1da4970b.js" crossorigin="anonymous"></script>
+
+  <!-- Ace Editor -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ext-language_tools.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: whitesmoke;
+      margin: 0;
+    }
+
+    /* Popup styles */
+    #popup {
+      position: fixed;
+      top: -100px;
+      left: 0;
+      right: 0;
+      background: #333;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      font-size: 16px;
+      z-index: 9999;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      transition: top 0.5s ease;
+    }
+
+    #popup.show {
+      top: 0;
+    }
+
+    #popup button {
+      margin-top: 10px;
+      padding: 6px 12px;
+      background: white;
+      color: black;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .editor {
+      height: 200px;
+      width: 100%;
+      border: 1px solid black;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .save-btn {
+      display: inline-block;
+      margin-bottom: 20px;
+      padding: 8px 12px;
+      background-color: black;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .save-btn:hover {
+      background-color: blue;
+    }
+
+    .container {
+      display: flex;
+      gap: 10px;
+      padding: 20px;
+    }
+
+    .left {
+      flex: 1;
+    }
+
+    .right {
+      flex: 1;
+    }
+
+    iframe {
+      width: 100%;
+      height: 800px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+
+    #stopwatch {
+      padding: 10px 20px;
+      background: white;
+      border-bottom: 2px solid #ccc;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #timeInput {
+      width: 100px;
+      padding: 5px;
+      font-size: 14px;
+    }
+
+    #startBtn {
+      padding: 5px 10px;
+      font-size: 14px;
+      background: black;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #startBtn:hover {
+      background-color: blue;
+    }
+
+    #timerDisplay {
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .filename-input {
+      width: 100%;
+      padding: 6px;
+      font-size: 14px;
+      margin-bottom: 5px;
+      border-radius: 6px;
+      border: 1px solid #aaa;
+    }
+  
+    .site-nav {
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      background: #222;
+      position: relative;
+      z-index: 1001;
+    }
+    .site-nav a {
+      display: inline-block;
+      padding: 9px 14px;
+      color: white;
+      background: #111;
+      border: 1px solid #777;
+      border-radius: 7px;
+      text-decoration: none;
+      font: bold 14px Arial, sans-serif;
+      transition: background-color .2s ease;
+    }
+    .site-nav a:hover, .site-nav a[aria-current="page"] {
+      background: magenta;
+      color: white;
+    }
+
+  </style>
+
+  <script>
+    let htmlEditor, cssEditor, jsEditor;
+    let countdown;
+
+    window.onload = function () {
+      // Show popup
+      setTimeout(() => {
+        document.getElementById("popup").classList.add("show");
+      }, 300);
+
+      ace.require("ace/ext/language_tools");
+
+      htmlEditor = ace.edit("html-editor", {
+        mode: "ace/mode/html",
+        theme: "ace/theme/monokai",
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        enableSnippets: true
+      });
+
+      cssEditor = ace.edit("css-editor", {
+        mode: "ace/mode/css",
+        theme: "ace/theme/monokai",
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        enableSnippets: true
+      });
+
+      jsEditor = ace.edit("js-editor", {
+        mode: "ace/mode/javascript",
+        theme: "ace/theme/monokai",
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        enableSnippets: true
+      });
+
+      htmlEditor.session.on('change', run);
+      cssEditor.session.on('change', run);
+      jsEditor.session.on('change', run);
+    };
+
+    function closePopup() {
+      document.getElementById("popup").classList.remove("show");
+    }
+
+    function run() {
+      let htmlCode = htmlEditor.getValue();
+      let cssCode = cssEditor.getValue();
+      let jsCode = jsEditor.getValue();
+
+      let output = document.getElementById("output");
+      output.contentDocument.body.innerHTML = htmlCode + "<style>" + cssCode + "</style>";
+      output.contentWindow.eval(jsCode);
+    }
+
+    function saveFile(filename, content) {
+      let blob = new Blob([content], { type: "text/plain" });
+      let a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    }
+
+    function handleSave(type) {
+      let fileName = "";
+      let content = "";
+
+      if (type === "html") {
+        fileName = document.getElementById("htmlFileName").value.trim();
+        content = htmlEditor.getValue();
+      } else if (type === "css") {
+        fileName = document.getElementById("cssFileName").value.trim();
+        content = cssEditor.getValue();
+      } else if (type === "js") {
+        fileName = document.getElementById("jsFileName").value.trim();
+        content = jsEditor.getValue();
+      }
+
+      if (!fileName || !fileName.includes(".")) {
+        alert("Please enter a valid file name with extension (e.g., style.css)");
+        return;
+      }
+
+      saveFile(fileName, content);
+    }
+
+    function autoSaveAll() {
+      handleSave("html");
+      handleSave("css");
+      handleSave("js");
+    }
+
+    function startTimer() {
+      let seconds = parseInt(document.getElementById("timeInput").value);
+      let display = document.getElementById("timerDisplay");
+
+      if (isNaN(seconds) || seconds <= 0) {
+        alert("Please enter a valid number of seconds.");
+        return;
+      }
+
+      display.textContent = `Time Left: ${seconds}s`;
+
+      clearInterval(countdown);
+      countdown = setInterval(() => {
+        seconds--;
+        display.textContent = `Time Left: ${seconds}s`;
+
+        if (seconds <= 0) {
+          clearInterval(countdown);
+          display.textContent = "Time's up! Saving and exiting...";
+          autoSaveAll();
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 2000);
+        }
+      }, 1000);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        alert("Tab switched or minimized. Exiting for safety.");
+        window.location.href = "index.html";
+      }
+    });
+
+    window.addEventListener("blur", () => {
+      alert("Window inactive. Exiting for safety.");
+      window.location.href = "index.html";
+    });
+  </script>
+</head>
+
+<body>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="index.html">HOME</a>
+    <a href="code1.html">EDITOR</a>
+    <a href="code.html">CLASSIC EDITOR</a>
+    <a href="code2.html" aria-current="page">WORKSPACE</a>
+  </nav>
+  <!-- Popup -->
+  <div id="popup">
+    "The code you write makes you a programmer. The code you read makes you a developer."
+    <br />
+    <button onclick="closePopup()">OK</button>
+  </div>
+
+  <div id="stopwatch">
+    <label><i class="fa-regular fa-clock"></i> Timer (sec):</label>
+    <input type="number" id="timeInput" placeholder="e.g. 60" />
+    <button id="startBtn" onclick="startTimer()">Start</button>
+    <div id="timerDisplay">Not started</div>
+  </div>
+
+  <div class="container">
+    <div class="left">
+      <!-- HTML Section -->
+      <label><i class="fa-solid fa-code"></i> HTML File Name:</label>
+      <input type="text" id="htmlFileName" class="filename-input" value="index.html" />
+      <div id="html-editor" class="editor"></div>
+      <button class="save-btn" onclick="handleSave('html')">Save HTML</button>
+
+      <!-- CSS Section -->
+      <label><br><i class="fa-brands fa-css3-alt"></i> CSS File Name:</label>
+      <input type="text" id="cssFileName" class="filename-input" value="style.css" />
+      <div id="css-editor" class="editor"></div>
+      <button class="save-btn" onclick="handleSave('css')">Save CSS</button>
+
+      <!-- JavaScript Section -->
+      <label><br><i class="fa-brands fa-js"></i> JavaScript File Name:</label>
+      <input type="text" id="jsFileName" class="filename-input" value="script.js" />
+      <div id="js-editor" class="editor"></div>
+      <button class="save-btn" onclick="handleSave('js')">Save JS</button>
+    </div>
+
+    <div class="right">
+      <label><i class="fa-solid fa-play"></i> OUTPUT</label>
+      <iframe id="output"></iframe>
+    </div>
+  </div>
+</body>
+</html>

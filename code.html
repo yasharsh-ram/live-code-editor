@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#111111">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>LIVE CODE EDITOR - ACE</title>
+
+  <!-- Font Awesome -->
+  <script src="https://kit.fontawesome.com/ec1da4970b.js" crossorigin="anonymous"></script>
+
+  <!-- Ace Editor + Extensions -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ext-language_tools.min.js"></script>
+
+  <style>
+    .editor {
+      height: 200px;
+      width: 100%;
+      border: 1px solid black;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .save-btn {
+      display: inline-block;
+      margin-bottom: 10px;
+      margin-right: 10px;
+      padding: 8px 12px;
+      background-color: black;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .save-btn:hover {
+      background-color: blue;
+    }
+
+    .container {
+      background-color: whitesmoke;
+      display: flex;
+      gap: 10px;
+      padding: 20px;
+    }
+
+    .left {
+      flex: 1;
+    }
+
+    .right {
+      flex: 1;
+    }
+
+    iframe {
+      width: 100%;
+      height: 800px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+  
+    .site-nav {
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      background: #222;
+      position: relative;
+      z-index: 1001;
+    }
+    .site-nav a {
+      display: inline-block;
+      padding: 9px 14px;
+      color: white;
+      background: #111;
+      border: 1px solid #777;
+      border-radius: 7px;
+      text-decoration: none;
+      font: bold 14px Arial, sans-serif;
+      transition: background-color .2s ease;
+    }
+    .site-nav a:hover, .site-nav a[aria-current="page"] {
+      background: magenta;
+      color: white;
+    }
+
+  </style>
+
+  <script>
+    let htmlEditor, cssEditor, jsEditor;
+
+    window.addEventListener("beforeunload", function (event) {
+      event.returnValue = "Are you sure you want to refresh? Any unsaved changes will be lost.";
+    });
+
+    window.onload = function () {
+      ace.require("ace/ext/language_tools");
+
+      htmlEditor = ace.edit("html-editor", {
+        mode: "ace/mode/html",
+        theme: "ace/theme/monokai",
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        enableSnippets: true
+      });
+
+      cssEditor = ace.edit("css-editor", {
+        mode: "ace/mode/css",
+        theme: "ace/theme/monokai",
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        enableSnippets: true
+      });
+
+      jsEditor = ace.edit("js-editor", {
+        mode: "ace/mode/javascript",
+        theme: "ace/theme/monokai",
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        enableSnippets: true
+      });
+
+      htmlEditor.session.on('change', run);
+      cssEditor.session.on('change', run);
+      jsEditor.session.on('change', run);
+    };
+
+    function run() {
+      let htmlCode = htmlEditor.getValue();
+      let cssCode = cssEditor.getValue();
+      let jsCode = jsEditor.getValue();
+
+      let output = document.getElementById("output");
+      output.contentDocument.body.innerHTML = htmlCode + "<style>" + cssCode + "</style>";
+      output.contentWindow.eval(jsCode);
+    }
+
+    function saveFile(filename, content) {
+      let blob = new Blob([content], { type: "text/plain" });
+      let a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    }
+
+    function saveHTML() {
+      saveFile('index.html', htmlEditor.getValue());
+    }
+
+    function saveCSS() {
+      saveFile('style.css', cssEditor.getValue());
+    }
+
+    function saveJS() {
+      saveFile('script.js', jsEditor.getValue());
+    }
+
+    function openFile(input, editor) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        editor.setValue(e.target.result, -1); // -1 to keep cursor position
+        run(); // Refresh output
+      };
+      reader.readAsText(file);
+    }
+  </script>
+</head>
+
+<body>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="index.html">HOME</a>
+    <a href="code1.html">EDITOR</a>
+    <a href="code.html" aria-current="page">CLASSIC EDITOR</a>
+    <a href="code2.html">WORKSPACE</a>
+  </nav>
+  <div class="container">
+    <div class="left">
+      <!-- HTML -->
+      <label><i class="fa-solid fa-code"></i> HTML</label>
+      <div id="html-editor" class="editor"></div>
+      <button class="save-btn" onclick="saveHTML()">Save HTML</button>
+      <input type="file" id="openHTML" style="display:none" onchange="openFile(this, htmlEditor)">
+      <button class="save-btn" onclick="document.getElementById('openHTML').click()">Open HTML</button>
+
+      <!-- CSS -->
+      <label><br><i class="fa-brands fa-css3-alt"></i> CSS</label>
+      <div id="css-editor" class="editor"></div>
+      <button class="save-btn" onclick="saveCSS()">Save CSS</button>
+      <input type="file" id="openCSS" style="display:none" onchange="openFile(this, cssEditor)">
+      <button class="save-btn" onclick="document.getElementById('openCSS').click()">Open CSS</button>
+
+      <!-- JS -->
+      <label><br><i class="fa-brands fa-js"></i> JAVASCRIPT</label>
+      <div id="js-editor" class="editor"></div>
+      <button class="save-btn" onclick="saveJS()">Save JS</button>
+      <input type="file" id="openJS" style="display:none" onchange="openFile(this, jsEditor)">
+      <button class="save-btn" onclick="document.getElementById('openJS').click()">Open JS</button>
+    </div>
+
+    <div class="right">
+      <label><i class="fa-solid fa-play"></i> OUTPUT</label>
+      <iframe id="output"></iframe>
+    </div>
+  </div>
+</body>
+
+</html>

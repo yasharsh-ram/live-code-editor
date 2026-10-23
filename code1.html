@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#111111">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>LIVE CODE EDITOR - ACE</title>
+
+  <!-- Font Awesome -->
+  <script src="https://kit.fontawesome.com/ec1da4970b.js" crossorigin="anonymous"></script>
+
+  <!-- Ace Editor + Extensions -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ext-language_tools.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    .editor {
+      height: 200px;
+      width: 100%;
+      border: 1px solid black;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .save-btn {
+      display: inline-block;
+      margin-bottom: 10px;
+      margin-right: 10px;
+      padding: 8px 12px;
+      background-color: black;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .save-btn:hover {
+      background-color: blue;
+    }
+
+    .container {
+      background-color: whitesmoke;
+      display: flex;
+      gap: 10px;
+      padding: 20px;
+    }
+
+    .left {
+      flex: 1;
+    }
+
+    .right {
+      flex: 1;
+    }
+
+    iframe {
+      width: 100%;
+      height: 800px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+
+    .filename {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    /* Popup styles */
+    #popup {
+      position: fixed;
+      top: -300px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: white;
+      border: 3px solid magenta;
+      border-radius: 12px;
+      padding: 30px 40px;
+      width: 80%;
+      max-width: 500px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      color: #333;
+      z-index: 1000;
+      transition: top 0.5s ease-in-out;
+    }
+
+    #popup.show {
+      top: 80px;
+    }
+
+    #popup button {
+      margin-top: 20px;
+      background-color: magenta;
+      color: white;
+      font-size: 18px;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #popup button:hover {
+      background-color: #d100d1;
+    }
+
+    #popup button i {
+      font-size: 20px;
+    }
+  
+    .site-nav {
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      background: #222;
+      position: relative;
+      z-index: 1001;
+    }
+    .site-nav a {
+      display: inline-block;
+      padding: 9px 14px;
+      color: white;
+      background: #111;
+      border: 1px solid #777;
+      border-radius: 7px;
+      text-decoration: none;
+      font: bold 14px Arial, sans-serif;
+      transition: background-color .2s ease;
+    }
+    .site-nav a:hover, .site-nav a[aria-current="page"] {
+      background: magenta;
+      color: white;
+    }
+
+  </style>
+
+  <script>
+    let htmlEditor, cssEditor, jsEditor;
+    let fileNames = {
+      html: "Untitled.html",
+      css: "Untitled.css",
+      js: "Untitled.js"
+    };
+
+    window.addEventListener("beforeunload", function (event) {
+      event.returnValue = "Are you sure you want to refresh? Any unsaved changes will be lost.";
+    });
+
+    window.onload = function () {
+      // Show popup
+      document.getElementById('popup').classList.add('show');
+
+      ace.require("ace/ext/language_tools");
+
+      htmlEditor = ace.edit("html-editor", {
+        mode: "ace/mode/html",
+        theme: "ace/theme/monokai",
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        enableSnippets: true
+      });
+
+      cssEditor = ace.edit("css-editor", {
+        mode: "ace/mode/css",
+        theme: "ace/theme/monokai",
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        enableSnippets: true
+      });
+
+      jsEditor = ace.edit("js-editor", {
+        mode: "ace/mode/javascript",
+        theme: "ace/theme/monokai",
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        enableSnippets: true
+      });
+
+      htmlEditor.session.on('change', run);
+      cssEditor.session.on('change', run);
+      jsEditor.session.on('change', run);
+
+      updateFilenamesUI();
+    };
+
+    function run() {
+      let htmlCode = htmlEditor.getValue();
+      let cssCode = cssEditor.getValue();
+      let jsCode = jsEditor.getValue();
+
+      let output = document.getElementById("output");
+      output.contentDocument.body.innerHTML = htmlCode + "<style>" + cssCode + "</style>";
+      output.contentWindow.eval(jsCode);
+    }
+
+    function saveFile(filename, content) {
+      let blob = new Blob([content], { type: "text/plain" });
+      let a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    }
+
+    function promptAndSave(type, editor) {
+      let filename = prompt("Enter filename (with extension):", fileNames[type]);
+      if (filename) {
+        fileNames[type] = filename;
+        updateFilenamesUI();
+        saveFile(filename, editor.getValue());
+      }
+    }
+
+    function openFile(input, editor, type) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        editor.setValue(e.target.result, -1);
+        fileNames[type] = file.name;
+        updateFilenamesUI();
+        run();
+      };
+      reader.readAsText(file);
+    }
+
+    function updateFilenamesUI() {
+      document.getElementById("html-filename").textContent = fileNames.html;
+      document.getElementById("css-filename").textContent = fileNames.css;
+      document.getElementById("js-filename").textContent = fileNames.js;
+    }
+
+    function closePopup() {
+      document.getElementById('popup').classList.remove('show');
+    }
+  </script>
+</head>
+
+<body>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="index.html">HOME</a>
+    <a href="code1.html" aria-current="page">EDITOR</a>
+    <a href="code.html">CLASSIC EDITOR</a>
+    <a href="code2.html">WORKSPACE</a>
+  </nav>
+  <!-- POPUP -->
+  <div id="popup">
+    "Web development is the art of creating opportunities and constantly updating their skills."
+    <br />
+    <button onclick="closePopup()">CONTINUE</button>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <div class="container">
+    <div class="left">
+      <!-- HTML -->
+      <div class="filename" id="html-filename">Untitled.html</div>
+      <label><i class="fa-solid fa-code"></i> HTML</label>
+      <div id="html-editor" class="editor"></div>
+      <button class="save-btn" onclick="promptAndSave('html', htmlEditor)">Save HTML</button>
+      <input type="file" id="openHTML" style="display:none" onchange="openFile(this, htmlEditor, 'html')">
+      <button class="save-btn" onclick="document.getElementById('openHTML').click()">Open HTML</button>
+
+      <!-- CSS -->
+      <div class="filename" id="css-filename">Untitled.css</div>
+      <label><i class="fa-brands fa-css3-alt"></i> CSS</label>
+      <div id="css-editor" class="editor"></div>
+      <button class="save-btn" onclick="promptAndSave('css', cssEditor)">Save CSS</button>
+      <input type="file" id="openCSS" style="display:none" onchange="openFile(this, cssEditor, 'css')">
+      <button class="save-btn" onclick="document.getElementById('openCSS').click()">Open CSS</button>
+
+      <!-- JS -->
+      <div class="filename" id="js-filename">Untitled.js</div>
+      <label><i class="fa-brands fa-js"></i> JS</label>
+      <div id="js-editor" class="editor"></div>
+      <button class="save-btn" onclick="promptAndSave('js', jsEditor)">Save JS</button>
+      <input type="file" id="openJS" style="display:none" onchange="openFile(this, jsEditor, 'js')">
+      <button class="save-btn" onclick="document.getElementById('openJS').click()">Open JS</button>
+    </div>
+
+    <div class="right">
+      <label><i class="fa-solid fa-play"></i> OUTPUT</label>
+      <iframe id="output"></iframe>
+    </div>
+  </div>
+</body>
+
+</html>
